@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101827">
+  <title>МатКласс</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="#" id="homeLink"><span class="brand-mark">M</span> МатКласс</a>
+  <span class="top-note">Платформа контрольных и самостоятельных работ</span>
+</header>
+<main class="shell">
+  <section id="notice" class="notice hidden"></section>
+  <section id="homeView" class="view">
+    <div class="hero">
+      <div><p class="eyebrow">ОБРАЗОВАТЕЛЬНАЯ ПЛАТФОРМА</p><h1>Проверяй знания.<br><span>Развивайся.</span></h1>
+      <p class="muted">Создание, проведение и проверка учебных работ.</p></div>
+      <div class="hero-symbol">∑</div>
+    </div>
+    <div class="entry-grid">
+      <article class="panel"><div class="panel-icon">⌘</div><h2>Кабинет ученика</h2>
+        <p class="muted">Введи имя и фамилию, чтобы увидеть доступные работы.</p>
+        <form id="studentEntryForm"><label>Имя<input id="studentFirst" required maxlength="40" autocomplete="given-name" placeholder="Иван"></label>
+        <label>Фамилия<input id="studentLast" required maxlength="50" autocomplete="family-name" placeholder="Иванов"></label>
+        <button class="primary" type="submit">Перейти к работам</button></form>
+      </article>
+      <article class="panel"><div class="panel-icon">▣</div><h2>Кабинет преподавателя</h2>
+        <p class="muted">Вход по постоянному пятизначному коду.</p>
+        <form id="teacherEntryForm"><label>Код преподавателя<input id="teacherCode" required minlength="5" maxlength="5" inputmode="numeric" pattern="[0-9]{5}" placeholder="•••••"></label>
+        <button class="secondary" type="submit">Войти в кабинет</button></form>
+      </article>
+    </div>
+  </section>
+
+  <section id="studentWorksView" class="view hidden">
+    <div class="section-head"><div><p class="eyebrow">КАБИНЕТ УЧЕНИКА</p><h1 id="studentGreeting">Доступные работы</h1></div><button class="ghost" id="studentHomeBtn">На главную</button></div>
+    <div id="studentWorks" class="cards"></div>
+  </section>
+
+  <section id="attemptView" class="view hidden">
+    <div class="section-head"><div><p class="eyebrow">ВЫПОЛНЕНИЕ РАБОТЫ</p><h1 id="attemptTitle">Работа</h1><p id="attemptStudent" class="muted"></p></div>
+      <div class="timer" id="timer">00:00</div></div>
+    <div id="attemptStatus" class="notice hidden"></div>
+    <div id="questionList" class="question-list"></div>
+    <div class="attempt-actions"><button class="primary" id="finishBtn">Завершить работу</button></div>
+  </section>
+
+  <section id="teacherView" class="view hidden">
+    <div class="section-head"><div><p class="eyebrow">ПАНЕЛЬ УПРАВЛЕНИЯ</p><h1>Кабинет преподавателя</h1></div><button class="ghost" id="teacherLogout">Выйти</button></div>
+    <div class="tabs"><button class="tab active" data-tab="monitor">Мониторинг</button><button class="tab" data-tab="create">Создать работу</button><button class="tab" data-tab="works">Мои работы</button><button class="tab" data-tab="review">Проверка ответов</button></div>
+    <section id="tab-monitor" class="tab-content">
+      <div class="stats" id="stats"></div>
+      <div class="section-head compact"><h2>Участники</h2><button class="ghost" id="refreshMonitor">Обновить</button></div>
+      <div class="table-wrap"><table><thead><tr><th>Ученик</th><th>Работа</th><th>Начал</th><th>Статус</th><th>Баллы</th></tr></thead><tbody id="monitorRows"></tbody></table></div>
+      <p class="hint">Панель обновляется автоматически примерно каждые 2 секунды. Статус «Нет связи» означает, что сервер не получил подтверждение активности; после превышения 5 секунд попытка аннулируется.</p>
+    </section>
+    <section id="tab-create" class="tab-content hidden">
+      <form id="createWorkForm" class="panel form-panel">
+        <h2>Новая работа</h2>
+        <div class="form-grid">
+          <label>Название<input id="workTitle" required maxlength="100" placeholder="Контрольная работа №1"></label>
+          <label>Раздел<select id="workSection"><option>Алгебра</option><option>Геометрия</option></select></label>
+          <label>Тема<input id="workTopic" required maxlength="100" placeholder="Неравенства"></label>
+          <label>Сложность<select id="workDifficulty"><option>Лёгкая</option><option selected>Средняя</option><option>Высокая</option></select></label>
+          <label>Время, минут<input id="workDuration" type="number" min="1" max="240" value="30" required></label>
+          <label>Тип работы<select id="workMode"><option value="test">Тестовая</option><option value="free">С ответом</option></select></label>
+        </div>
+        <div class="section-head compact"><h2>Задания</h2><button type="button" class="secondary small" id="addTaskBtn">+ Добавить задание</button></div>
+        <div id="taskEditor"></div>
+        <div class="panel template-panel">
+          <h3>Необязательный шаблон задания</h3>
+          <p class="muted">Преподаватель задаёт образец и переменную {n}. Сайт подставит случайное число и рассчитает числовой ответ по формуле. Обычные задания можно создавать без шаблонов.</p>
+          <div class="form-grid">
+            <label>Название шаблона<input id="tplTitle" placeholder="Линейное выражение"></label>
+            <label>Условие с {n}<input id="tplPrompt" placeholder="Вычисли: 3 × {n} + 2"></label>
+            <label>Формула правильного ответа<input id="tplFormula" placeholder="3*n+2"></label>
+            <label>Минимум n<input id="tplMin" type="number" value="1"></label>
+            <label>Максимум n<input id="tplMax" type="number" value="10"></label>
+            <label>Баллы<input id="tplPoints" type="number" min="1" max="100" value="1"></label>
+          </div>
+          <div class="row-actions"><button type="button" class="secondary small" id="saveTemplateBtn">Сохранить шаблон</button><button type="button" class="secondary small" id="generateTemplateBtn">Создать задание по шаблону</button></div>
+          <label>Мои шаблоны<select id="savedTemplates"><option value="">Выбрать сохранённый шаблон</option></select></label>
+        </div>
+        <div class="math-keyboard" id="mathKeyboard">
+          <span class="keyboard-title">Математическая клавиатура — сначала выбери поле ответа или условия</span>
+          <div class="key-grid">
+            <button type="button" data-insert="x">x</button><button type="button" data-insert="y">y</button><button type="button" data-insert="²">x²</button><button type="button" data-insert="³">x³</button><button type="button" data-insert="√()">√</button><button type="button" data-insert="π">π</button><button type="button" data-insert="∞">∞</button><button type="button" data-insert="≤">≤</button><button type="button" data-insert="≥">≥</button><button type="button" data-insert="≠">≠</button><button type="button" data-insert="±">±</button><button type="button" data-insert="∫">∫</button><button type="button" data-insert="∑">∑</button><button type="button" data-insert="α">α</button><button type="button" data-insert="β">β</button><button type="button" data-insert="θ">θ</button><button type="button" data-insert="Δ">Δ</button><button type="button" data-insert="∠">∠</button><button type="button" data-insert="°">°</button><button type="button" data-insert="→">→</button><button type="button" data-insert="( )">( )</button><button type="button" data-insert="a/b">a/b</button><button type="button" data-insert="×">×</button><button type="button" data-insert="÷">÷</button>
+          </div>
+        </div>
+        <label class="checkline"><input id="publishWork" type="checkbox"> Сразу сделать работу доступной ученикам</label>
+        <button class="primary" type="submit">Сохранить работу</button>
+      </form>
+    </section>
+    <section id="tab-works" class="tab-content hidden"><div id="teacherWorks" class="cards"></div></section>
+    <section id="tab-review" class="tab-content hidden"><h2>Ответы для ручной проверки</h2><div id="reviewArea"></div></section>
+    <section id="tab-results" class="tab-content hidden"><h2>Результаты</h2><div id="resultsArea"></div></section>
+  </section>
+</main>
+<footer>МатКласс · Бесплатная учебная платформа</footer>
+<template id="taskTemplate">
+  <article class="task-editor panel">
+    <div class="section-head compact"><h3>Задание <span class="task-number"></span></h3><button type="button" class="danger-text remove-task">Удалить</button></div>
+    <label>Условие<textarea class="task-prompt" rows="2" required placeholder="Введите условие задания"></textarea></label>
+    <label>Тип ответа<select class="task-type"><option value="choice">Выбор варианта (автопроверка)</option><option value="numeric">Числовой ответ (автопроверка)</option><option value="manual">Развёрнутое решение (вручную)</option></select></label>
+    <div class="options-wrap"><label>Варианты ответов (каждый с новой строки)<textarea class="task-options" rows="3" placeholder="x = 2&#10;x = 3&#10;x = 4"></textarea></label></div>
+    <label>Правильный ответ<input class="task-correct" required placeholder="Для теста/числа — правильный ответ; для ручной проверки — критерий"></label>
+    <label class="numeric-wrap hidden">Допустимая погрешность<input class="task-tolerance" type="number" min="0" step="any" value="0.001"></label>
+    <label>Баллы<input class="task-points" type="number" min="1" max="100" value="1"></label>
+  </article>
+</template>
+</body></html>
